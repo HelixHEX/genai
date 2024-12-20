@@ -1,101 +1,92 @@
+'use client'
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import axios from 'axios';
 import Image from "next/image";
+import { useDebounce } from '@uidotdev/usehooks';
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [prompt, setPrompt] = useState<string>('');
+  const debouncedPrompt = useDebounce(prompt, 300); // debounce by 300ms
+  const [isTyping, setIsTyping] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+  const { data } = useQuery({
+    queryKey: [debouncedPrompt],
+    queryFn: async () => {
+      const res = await axios.post('/api/generateImage', {
+        prompt: JSON.stringify({ prompt })
+      })
+
+      return res.data
+    },
+    enabled: !!debouncedPrompt.trim(),
+    staleTime: Infinity,
+    retry: false
+  })
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPrompt(e.target.value);
+    setIsTyping(e.target.value.length > 0);
+  };
+
+
+  return (
+    <div className="w-full h-[100vh] min-h-[100vh] flex items-center justify-center">
+      <motion.div
+        className="w-full flex flex-col items-center h-full"
+        initial={false}
+        animate={{
+          y: isTyping ? "50vh" : 0,
+          translateY: isTyping ? "-50%" : 0
+        }}
+        transition={{ duration: 0.5, ease: "easeInOut" }}
+      >
+        <AnimatePresence mode="wait">
+          {!isTyping && (
+            <motion.p
+              key="helper-text"
+              initial={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-2xl text-gray-400 font-light pointer-events-none"
+            >
+              Describe your image to start generating
+            </motion.p>
+          )}
+          {data && (
+            <motion.div
+              key="generated-image"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <Image
+                alt="Generated image"
+                width={800}
+                height={800}
+                className="rounded-md max-w-[90vw] h-auto"
+                src={`data:image/png;base64,${data.image.b64_json}`}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <motion.div
+          className="w-[400px] px-4 py-8 mt-auto"
+          initial={false}
+          animate={{
+            width: isTyping ? "100%" : "400px"
+          }}
+          transition={{ duration: 0.5, ease: "easeInOut" }}
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+          <input
+            value={prompt}
+            className="w-full p-3 bg-[#ECE8EF] text-gray-800 text-sm rounded-md outline-none"
+            onChange={handleInputChange}
+            placeholder="Describe your image..."
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }
